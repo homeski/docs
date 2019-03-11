@@ -1,0 +1,8 @@
+version: '3'
+services:
+  web:
+    build: .
+    volumes:
+      - ./generated-files/public-html:/usr/local/apache2/htdocs/
+    ports:
+      - "80:80"
