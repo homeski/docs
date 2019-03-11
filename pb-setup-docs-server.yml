@@ -2,9 +2,10 @@
   name: Generate public-html files
   vars:
     folders:
-      - 'generated-files'
-      - 'generated-files/markdown-html'
-      - 'generated-files/public-html'
+      - 'generated-files'                    #0
+      - 'generated-files/markdown-html'      #1
+      - 'generated-files/public-html'        #2
+      - 'generated-files/public-html/images' #3
   tasks:
     - name: Create directories
       delegate_to: localhost
@@ -26,6 +27,14 @@
       delegate_to: localhost
       template:
         src: "templates/site.html.j2"
-        dest: "{{ folders[2] }}/{{ item.path | basename }}"
+        dest: "{{ folders[2] }}/{{ (item.path | basename).split('.') | first }}.html"
       with_filetree: "{{ folders[1] }}"
       when: item.state == 'file'
+
+    - name: Copy images to public-html
+      delegate_to: localhost
+      copy:
+        src: "{{ item }}"
+        dest: "{{ folders[3] }}/{{ item | basename }}"
+      with_fileglob:
+        - "templates/images/*"

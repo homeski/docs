@@ -1,0 +1,71 @@
+<h2 id="_ansible_tower_behind_a_reverse_proxy_">Ansible Tower behind a reverse proxy</h2>
+
+<p>When putting Ansible Tower behind a reverse proxy for whatever reason, it's easy to be surprised when live events (auto-refresh of job templates output for example) in the web interface doesn't work anymore. If your reverse proxy is handled by <a href="https://www.nginx.com/resources/wiki/">NGINX</a> or <a href="https://httpd.apache.org/">Apache</a>, they have to be specifically configured to pass the <a href="http://www.websocket.org/">Websocket protocol</a> as well. The Ansible documentation mentions it's use of WebSockets <a href="https://docs.ansible.com/ansible-tower/latest/html/administration/troubleshooting.html#websockets-port-for-live-events-not-working">briefly</a>.</p>
+
+<h3 id="_errors_">Errors</h3>
+
+<p>Tower doesn't throw show any errors in the UI but if a browser developer console is opened, errors like the following can be seen repeatedly:</p>
+
+<div class="_markdown-code-bt"><pre style="display:none"></pre><pre><code>WebSocket connection to '&lt;URL&gt;' failed:
+WebSocket is closed before the connection is established.
+</code></pre></div>
+
+<p>or</p>
+
+<div class="_markdown-code-bt"><pre style="display:none"></pre><pre><code>WebSocket connection to 'wss://tower.escwq.com/websocket/' failed:
+Error during WebSocket handshake: Unexpected response code: 504
+</code></pre></div>
+
+<p><strong>If you're seeing the first error, you may try setting your <a href="https://docs.ansible.com/ansible-tower/latest/html/administration/proxy-support.html#reverse-proxy"><code>REMOTE_HOST_HEADERS</code></a> setting first.</strong></p>
+
+<p><img width="100%" src="images/tower-errors.png"/></p>
+
+<h3 id="_nginx_">NGINX</h3>
+
+<p>A sample NGINX reverse proxy config for Tower:</p>
+
+<div class="_markdown-code-bt"><pre style="display:none"></pre><pre><code>server {
+  listen 443;
+  server_name tower.example.com;
+
+  location / {
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header Host $http_host;
+    proxy_set_header X-Forwarded-Proto https;
+    proxy_redirect off;
+    proxy_pass https://tower.example.com/;
+  }
+
+  location /websocket/ {
+    proxy_http_version 1.1;
+
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+
+    proxy_pass https://tower.example.com/websocket/;
+  }
+
+  ssl on;
+  ssl_certificate /etc/tower/tower.cert;
+  ssl_certificate_key /etc/tower/tower.key;
+}
+</code></pre></div>
+
+<h3 id="_apache_">Apache</h3>
+
+<p>A sample Apache reverse proxy config for Tower:</p>
+
+<div class="_markdown-code-bt"><pre style="display:none"></pre><pre><code>&lt;VirtualHost *:80&gt;
+  ServerName tower.example.com
+
+  RewriteEngine On
+  RewriteCond %{HTTP:Upgrade} =websocket [NC]
+  RewriteRule /(.*)           ws://tower.host.name:80/$1 [P,L]
+  RewriteCond %{HTTP:Upgrade} !=websocket [NC]
+  RewriteRule /(.*)           http://tower.host.name:80/$1 [P,L]
+
+  ProxyPassReverse / http://localhost:80/
+&lt;/VirtualHost&gt;
+</code></pre></div>
+
+<p>Restart the server after any config file changes and live events should work!</p>

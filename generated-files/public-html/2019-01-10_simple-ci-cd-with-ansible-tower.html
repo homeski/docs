@@ -979,8 +979,296 @@
   </head>
   <body>
   	<div class="markdown-body">
-{% include 'generated-files/markdown-html/header.md.html' %}
-{% include 'generated-files/markdown-html/' + item.path %}
-    </div>
+<h1 id="_escwq_com_">escwq.com</h1><h2 id="_simple_ci_cd_pipelines_with_ansible_tower_and_git_">Simple CI/CD pipelines with Ansible Tower and Git</h2>
+
+<p>Let's say we have access to 3 different network environments:</p>
+
+<ul>
+<li>dev</li>
+<li>qa</li>
+<li>prod</li>
+</ul>
+
+<p><img width="100%" src="images/1-server-envs.png"/></p>
+
+<p>Let's say we have a web application we're working on and we want to:</p>
+
+<ul>
+<li>Develop on the application in a local development environment.</li>
+<li>Make a commit to the <code>master</code> branch of the application repository and have the <strong>dev</strong> server automatically build, test, and deploy the code in the <code>master</code> branch.</li>
+<li>When ready, manually merge from <code>master</code> to <code>qa</code> and have the <strong>qa</strong> server automatically build, test, and deploy the code in the <code>qa</code> branch.</li>
+<li>When ready, manually merge from <code>qa</code> to <code>prod</code> and have the <strong>prod</strong> server automatically build, test, and deploy the code in the <code>prod</code> branch.</li>
+</ul>
+
+<p><img width="100%" src="images/2-workflow.png"/></p>
+
+<p>Doing this we would be fulfilling some key software engineering best practices:</p>
+
+<ul>
+<li>Infrastructure as code</li>
+<li>Continuous Integration</li>
+<li>Continuous Delivery</li>
+</ul>
+
+<p>Finally, let's say we want to do this with only <a href="https://docs.ansible.com/?extIdCarryOver=true&amp;sc_cid=701f2000001D8G5AAK">Ansible Tower</a> and <a href="https://git-scm.com/">Git</a>, and require the solution to be scalable to many teams, applications, etc.</p>
+
+<p>Easy! Sam Doran wrote a great guide <em>Git Workflow for Ansible Development</em> (attached below) that explains how to utilize and link together Ansible and Git to create scalable development workflows. The following draws inspiration from the guide while putting it into practice using Ansible Tower and GitLab.</p>
+
+<p><img width="25%" src="images/3-tools.png"/></p>
+
+<h3 id="_git_repositories_">Git Repositories</h3>
+
+<p>Let's cover how we'll use Git and define how the Git repositories should be structured...</p>
+
+<p>Let's define 3 different types of <a href="https://git-scm.com/book/en/v2/Git-Basics-Getting-a-Git-Repository">repositories</a> and their <a href="https://git-scm.com/book/en/v2/Git-Branching-Branches-in-a-Nutshell">branches</a>:</p>
+
+<ul>
+<li><p><strong>ansible-inventory.git</strong>: holds the <code>host-*</code> files and <a href="https://docs.ansible.com/ansible/latest/user_guide/intro_inventory.html#host-variables">host variables</a> used by Ansible. There should be 1 host file per environment. Uses a single <code>master</code> branch. e.g.</p>
+
+<p>Branches:</p>
+
+<div class="_markdown-code"><pre style="display:none"></pre><pre><code> master
+</code></pre></div>
+
+<p>Structure:</p>
+
+<div class="_markdown-code"><pre style="display:none"></pre><pre><code> $ tree ansible-inventory
+ ├── group_vars/
+ │   └── all.yml
+ ├── hosts-dev
+ ├── hosts-qa
+ └── hosts-prod
+</code></pre></div></li>
+<li><p><strong>ansible-playbooks.git</strong>: holds the <a href="https://docs.ansible.com/ansible/latest/user_guide/playbooks_intro.html">playbooks</a> that will run against the servers. Uses 1 branch per environment. These will be single playbooks that will need to run against multiple environments, it's important to parameterize the playbooks/<a href="https://docs.ansible.com/ansible/latest/user_guide/playbooks_reuse_roles.html">roles</a> accordingly! <strong>Note:</strong> Roles should be their own repositories and only be included by these playbooks using <a href="https://docs.ansible.com/ansible/latest/reference_appendices/galaxy.html#installing-multiple-roles-from-a-file">requirements.yml</a></p>
+
+<p>Branches:</p>
+
+<div class="_markdown-code"><pre style="display:none"></pre><pre><code> master (dev)
+ qa
+ prod
+</code></pre></div>
+
+<p>Structure:</p>
+
+<div class="_markdown-code"><pre style="display:none"></pre><pre><code> $ tree ansible-playbooks
+ ├── README.md
+ ├── ansible.cfg
+ ├── pb-ping.yml
+ ├── pb-reload-app.yml
+ ├── pb-setup-app.yml
+ ├── pb-setup-system.yml
+ ├── pb-test-app.yml
+ └── templates
+     └── docker-compose.yml.j2
+</code></pre></div></li>
+<li><p><strong>application-repo.git</strong>: holds the application code that will get deployed. Uses 1 branch per environment. This will be one code base that will need to run in multiple environments, it's important to parameterize the application code accordingly!</p>
+
+<p>Branches:</p>
+
+<div class="_markdown-code"><pre style="display:none"></pre><pre><code> master (dev)
+ qa
+ prod
+</code></pre></div>
+
+<p>Structure:</p>
+
+<div class="_markdown-code"><pre style="display:none"></pre><pre><code> $ tree -d -L 1 application-repo
+ ├── app
+ ├── bin
+ ├── config
+ ├── discordbot
+ ├── docs
+ ├── lib
+ ├── log
+ ├── public
+ ├── test
+ ├── tmp
+ └── vendor
+</code></pre></div></li>
+</ul>
+
+<div class="_markdown-code-bt"><pre style="display:none"></pre><pre><code># Git Repositories
+ansible-inventory.git
+ansible-playbooks.git
+application-repo.git
+</code></pre></div>
+
+<p>This could scale out to multiple teams and applications easily. Each team would simply own their own versions of these repos and could have one or many of each.</p>
+
+<p><img width="100%" src="images/4-repos.png"/></p>
+
+<h4>Branching</h4>
+
+<p>Here's how to visualize the branching structure for <code>ansible-playbooks.git</code> and <code>application-repo.git</code>. The image visualizes manually merging code into <code>master</code> from a <code>feature-branch</code>, in this guide though, we're allowing commits directly to <code>master</code>. Either approach is completely valid.</p>
+
+<p><img width="50%" src="images/git-branching.png"/></p>
+
+<h3 id="_tower_resources_">Tower Resources</h3>
+
+<h4>Projects</h4>
+
+<ul>
+<li>1 <a href="https://docs.ansible.com/ansible-tower/latest/html/userguide/projects.html">project</a> for each inventory repo. e.g. <code>inventory</code> project -> <code>ansible-inventory.git</code> repo.</li>
+<li><p>1 project for each <strong>branch</strong> of the playbook repo. e.g. <code>playbooks-dev</code>, <code>playbooks-qa</code>, <code>playbooks-prod</code> projects -> <code>ansible-playbooks.git</code> repo.</p>
+
+<div class="_markdown-code"><pre style="display:none"></pre><pre><code> # Tower Projects
+ ansible-inventory # points to ansible-inventory.git:master
+ playbooks-dev # points to ansible-playbooks.git:master
+ playbooks-qa # points to ansible-playbooks.git:qa
+ playbooks-prod # points to ansible-playbooks.git:prod
+</code></pre></div></li>
+</ul>
+
+<h4>Inventories</h4>
+
+<ul>
+<li><p>1 <a href="https://docs.ansible.com/ansible-tower/latest/html/userguide/inventories.html">inventory</a> per environment, with each having a project source the points to the <code>inventory</code> project and the correct <code>hosts-*</code> file.</p>
+
+<div class="_markdown-code"><pre style="display:none"></pre><pre><code> # Tower Inventories
+ hosts-dev # inventory project source of hosts-dev in ansible-inventory.git repo
+ hosts-qa # inventory project source of hosts-qa in ansible-inventory.git repo
+ hosts-prod # inventory project source of hosts-prod in ansible-inventory.git repo
+</code></pre></div></li>
+</ul>
+
+<h4>Job Templates</h4>
+
+<ul>
+<li><p><a href="https://docs.ansible.com/ansible-tower/latest/html/userguide/job_templates.html">Job Templates</a> in Ansible Tower essentially are pre-configured playbook runs pointing to hosts files and having environment specific <a href="https://docs.ansible.com/ansible/latest/user_guide/playbooks_variables.html">variables</a> passed in. Job templates will be created with the intention of running against a specific environment. So it is needed to have 1 job template per playbook, per environment. e.g. (using the playbooks in the <code>ansible-playbooks.git</code> above)</p>
+
+<div class="_markdown-code"><pre style="display:none"></pre><pre><code> # Job Templates
+ job-setup-app-dev # uses (playbooks-dev, hosts-dev)
+ job-test-app-dev # uses (playbooks-dev, hosts-dev)
+ job-reload-app-dev # uses (playbooks-dev, hosts-dev)
+
+ job-setup-app-qa # uses (playbooks-qa, hosts-qa)
+ job-test-app-qa # uses (playbooks-qa, hosts-qa)
+ job-reload-app-qa # uses (playbooks-qa, hosts-qa)
+
+ job-setup-app-prod # uses (playbooks-prod, hosts-prod)
+ job-test-app-prod # uses (playbooks-prod, hosts-prod)
+ job-reload-app-prod # uses (playbooks-prod, hosts-prod)
+</code></pre></div></li>
+</ul>
+
+<h4>Workflows</h4>
+
+<ul>
+<li><p>Workflows will act against specific environments. They should have the intended environment appended to the name, and will only use job templates from the same environment.</p>
+
+<div class="_markdown-code"><pre style="display:none"></pre><pre><code> # Tower Workflows
+ workflow-deploy-app-dev # job-setup-app-dev -&gt; job-test-app-dev -&gt; job-reload-app-dev
+
+ workflow-deploy-app-qa # job-setup-app-qa -&gt; job-test-app-qa -&gt; job-reload-app-qa
+
+ workflow-deploy-app-prod # job-setup-app-prod -&gt; job-test-app-prod -&gt; job-reload-app-prod
+</code></pre></div></li>
+</ul>
+
+<h4>Scaling</h4>
+
+<p>Managing and creating all these resources is easily scalable using Ansible Tower.</p>
+
+<p>As an admin, create a new organization and assign a user(s) as an organization admin. This user(s) will be able to provision their own Inventories, Projects, Job Templates, Workflows, etc.</p>
+
+<p>Create a new organization per team and you'll achieve multi-tenancy, while still allowing organizations/teams to share resources as needed.</p>
+
+<p>A lot of text? Here is a visual representation of what we're accomplishing:</p>
+
+<p><img width="100%" src="images/4-tower-resources.png"/></p>
+
+<h3 id="_integration_between_git_and_ansible_tower_">Integration between Git and Ansible Tower</h3>
+
+<p>Now that we have all the resources for Git and Ansible Tower mapped out, it's time to set up the integration between the two. For this specific implementation, we're going to use <a href="https://about.gitlab.com/">GitLab</a> and take advantage of their <a href="https://docs.gitlab.com/ee/user/project/integrations/webhooks.html">webhooks</a> feature, which allows us to send HTTP calls when something happens in a repository. All major Git SaaS solutions offer similar features (<a href="https://github.com/">GitHub</a>, <a href="https://bitbucket.org/">BitBucket</a>, GitLab, etc). Though you could also accomplish the same thing with just bare Git repositories using <a href="https://git-scm.com/book/en/v2/Customizing-Git-Git-Hooks">hooks</a>. GitLab is free and open source, making it easy to install and use, and all the following examples will be based off it.</p>
+
+<h4>Ansible Tower application and token configuration</h4>
+
+<p>Within Tower, we'll need to create an <a href="https://docs.ansible.com/ansible-tower/latest/html/userguide/applications_auth.html">Application</a> that will have an <code>Authorization Grant Type: Resource owner password-based</code>. Once this is configured, we can use it to create an <a href="https://docs.ansible.com/ansible-tower/latest/html/administration/oauth2_token_auth.html">application token</a>.</p>
+
+<p>From the UI:</p>
+
+<p><code>Administration -&gt; Applications -&gt; Create</code></p>
+
+<p>Next is to create a token with write access so that this token can be used to create/start Ansible Tower resources through the <a href="https://docs.ansible.com/ansible-tower/latest/html/towerapi/index.html">API</a>.</p>
+
+<p>From the UI:</p>
+
+<p><code>Users -&gt; &lt;your_user&gt; -&gt; Tokens -&gt; Create</code></p>
+
+<p>Once this token is created, Tower will give us a unique token ID e.g. <code>mwS4G54Xr2En87RDdHtp7UxLDexcnK</code></p>
+
+<p>We can then use this token when making API calls against Tower. The token will have write privileges to any resource that the user it was created under has.</p>
+
+<p>You could create a special service-account user, give it access to only the workflows/playbooks needed, and create the token under that user to easily manage the token's access.</p>
+
+<h4>GitLab integrations/webhooks configuration</h4>
+
+<p>Again, here are the goals:</p>
+
+<ol>
+<li><p>When code is committed to <code>master</code> branch of the <code>application-repo.git</code> then have a webhook call the Tower API to launch workflow: <code>workflow-deploy-app-dev</code></p></li>
+<li><p>When a manual merge from <code>master</code> to <code>qa</code> is performed then have a webhook call the Tower API to launch workflow: <code>workflow-deploy-app-qa</code></p></li>
+<li><p>When a manual merge from <code>qa</code> to <code>prod</code> is performed then have a webhook call the Tower API to launch workflow: <code>workflow-deploy-app-prod</code></p></li>
+</ol>
+
+<p>The common case would be only commits to <code>master</code> are allowed, and merge requests into <code>qa</code> and <code>prod</code> would be manually approved, or could happen on a certain cadence.</p>
+
+<p>All workflows are configured with 2 main steps (yours will vary).</p>
+
+<ol>
+<li>Pull the latest code from the relevant branch (<code>master</code>, <code>qa</code>, <code>prod</code>), and run application tests. <strong>ONLY IF SUCCESSFULL</strong> -> go to step 2.</li>
+<li>Reload the running application with the latest code from the relevant branch (<code>master</code>, <code>qa</code>, <code>prod</code>)</li>
+</ol>
+
+<p>Basically, we need to configure the GitLab webhooks to call the correct workflows.</p>
+
+<p>From the UI:</p>
+
+<p><code>Repository -&gt; Settings -&gt; Integrations -&gt; Create</code></p>
+
+<div class="_markdown-code-bt"><pre style="display:none"></pre><pre><code>url: https://tower.mydomain.com/api/v2/workflow_job_templates/&lt;id&gt;/launch/
+secret token: &lt;above token from Tower&gt;
+Push events: &lt;branch&gt;
+</code></pre></div>
+
+<p>In the application repository settings, create an integration per branch/environment.</p>
+
+<p><strong>Note</strong> GitLab sends the secret token in an HTTP header as: <code>X-Gitlab-Token: &lt;token&gt;</code> in <code>/opt/gitlab/embedded/service/gitlab-rails/app/services/web_hook_service.rb</code>. Tower expects the Token sent in an HTTP header as: <code>Authorization: Bearer &lt;token&gt;</code>. It was necessary to edit the GitLab source code to achieve this. The correct way would be to write a custom "Project Service" GitLab integratation with Tower, but the source code edit was quick and easy :). See: <a href="https://github.com/gitlabhq/gitlabhq/blob/64fabd5dc132b7988d83bddb6f17a16223e76508/app/services/web_hook_service.rb#L116">https://github.com/gitlabhq/gitlabhq/blob/64fabd5dc132b7988d83bddb6f17a16223e76508/app/services/web_hook_service.rb#L116</a></p>
+
+<p>Once the GitLab webhooks are working, everything is in place.</p>
+
+<p><img width="100%" src="images/5-final-workflow.png"/></p>
+
+<h4>Conclusion</h4>
+
+<p>Now we're able to have:</p>
+
+<ul>
+<li>One application code base</li>
+<li>A single repository for Ansible Playbooks to provision the servers and provision/test/redeploy our application.</li>
+</ul>
+
+<p>Which allows us the ability to:</p>
+
+<ul>
+<li>Automated testing and deployment of code once committed.</li>
+<li>Commit application code once and move it into multiple environments using automation.</li>
+<li>Run separate branches of application AND playbook repos in each environment.</li>
+</ul>
+
+<p>The above ensures:</p>
+
+<ul>
+<li>Infrastructure as code</li>
+<li>Continuous integration</li>
+<li>Continuous deployment</li>
+</ul>
+
+<p>Using only</p>
+
+<ul>
+<li>Ansible Tower</li>
+<li>Git</li>
+</ul>    </div>
   </body>
 </html>
