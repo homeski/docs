@@ -5,4 +5,4 @@ services:
     volumes:
       - ./generated-files/public-html:/usr/local/apache2/htdocs/
     ports:
-      - "82:80"
+      - "127.0.0.1:82:80"
