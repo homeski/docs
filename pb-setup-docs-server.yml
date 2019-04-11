@@ -41,3 +41,22 @@
         dest: "{{ folders[3] }}/{{ item | basename }}"
       with_fileglob:
         - "templates/images/*"
+
+- hosts: localhost
+  connection: local
+  name: docker-compose management
+  tasks:
+    - name: docker-compose stop
+      docker_service:
+        project_src: "."
+        state: absent
+      register: output
+
+    - name: docker-compose start
+      docker_service:
+        project_src: "."
+        state: present
+        build: yes
+        scale:
+          web: 1
+      register: output
