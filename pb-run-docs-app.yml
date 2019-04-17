@@ -88,8 +88,8 @@
       register: output
 
     - name: Delete private key after Docker build
-      path:
-        src: "certs/{{ docs.ssl_key_path | basename }}"
+      file:
+        path: "certs/{{ docs.ssl_key_path | basename }}"
         state: absent
       when: docs.https
 
