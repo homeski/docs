@@ -1,4 +1,4 @@
-- hosts: app
+- hosts: localhost
   connection: local
   name: Generate public-html files
   vars:
@@ -47,12 +47,13 @@
 
 
 
-- hosts: app
+- hosts: localhost
   connection: local
   name: docker-compose management
   vars:
-    https: false
-    local_port: 8000
+    docs:
+      https: false
+      local_port: 8000
   tasks:
     - name: Template docker-compose.yml
       template:
