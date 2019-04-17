@@ -1,7 +1,10 @@
 version: '3'
 services:
   web:
-    build: .
+    build:
+      context: .
+      args:
+        https_enabled: false
     volumes:
       - ./generated-files/public-html:/usr/local/apache2/htdocs/
     ports:

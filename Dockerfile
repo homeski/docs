@@ -1,3 +1,4 @@
+ARG https_enabled
 FROM httpd:2.4
 COPY ./generated-files/public-html/ /usr/local/apache2/htdocs/
 COPY certs/blog.escwq.com.crt /usr/local/apache2/conf/server.crt

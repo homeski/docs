@@ -1,3 +1,4 @@
 *.png
 
-certs/
+certs/*
+!certs/.gitkeep
