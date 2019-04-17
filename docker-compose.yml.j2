@@ -1,0 +1,18 @@
+version: '3'
+services:
+  web:
+    build:
+      context: .
+{% if https | mandatory %}
+      dockerfile: Dockerfile-https
+{% else %}
+      dockerfile: Dockerfile-http
+{% endif %}
+    volumes:
+      - ./generated-files/public-html:/usr/local/apache2/htdocs/
+    ports:
+{% if https | mandatory %}
+      - "127.0.0.1:{{ local_port | mandatory }}:443"
+{% else %}
+      - "127.0.0.1:{{ local_port | mandatory }}:80"
+{% endif %}

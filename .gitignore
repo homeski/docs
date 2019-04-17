@@ -2,3 +2,5 @@
 
 certs/*
 !certs/.gitkeep
+
+docker-compose.yml

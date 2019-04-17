@@ -1,4 +1,4 @@
-- hosts: localhost
+- hosts: app
   connection: local
   name: Generate public-html files
   vars:
@@ -42,10 +42,23 @@
       with_fileglob:
         - "templates/images/*"
 
-- hosts: localhost
+  tags:
+    - templates
+
+
+
+- hosts: app
   connection: local
   name: docker-compose management
+  vars:
+    https: false
+    local_port: 8000
   tasks:
+    - name: Template docker-compose.yml
+      template:
+        src: docker-compose.yml.j2
+        dest: docker-compose.yml
+
     - name: docker-compose stop
       docker_service:
         project_src: "."
@@ -60,3 +73,6 @@
         scale:
           web: 1
       register: output
+
+  tags:
+    - docker-compose
