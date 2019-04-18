@@ -1,1 +1,1 @@
-# escwq.com
+# [escwq.com](/)
