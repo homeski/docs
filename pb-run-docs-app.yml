@@ -61,17 +61,6 @@
         src: docker-compose.yml.j2
         dest: docker-compose.yml
 
-    - name: Grab private key temporarily when HTTPS enabled
-      become: yes
-      become_user: root
-      copy:
-        src: "{{ docs.ssl_key_path }}"
-        dest: "certs/{{ docs.ssl_key_path | basename }}"
-        remote_src: yes
-        mode: 0644
-        group: wheel
-      when: docs.https
-
     - name: docker-compose stop
       docker_service:
         project_src: "."
@@ -86,12 +75,6 @@
         scale:
           web: 1
       register: output
-
-    - name: Delete private key after Docker build
-      file:
-        path: "certs/{{ docs.ssl_key_path | basename }}"
-        state: absent
-      when: docs.https
 
   tags:
     - docker-compose
