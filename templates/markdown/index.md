@@ -8,7 +8,3 @@
 
 - <a href="https://www.youtube.com/watch?v=-zNgp0a4VQ4" target="_blank">Red Hat OpenStack Platform GPU Use Case</a>
 - <a href="https://www.youtube.com/watch?v=VMUHIqlnL5Q" target="_blank">Red Hat OpenStack Platform Project Overview</a>
-
-**Talks**
-
-- [Ansible NYC](https://www.meetup.com/Ansible-NYC/events/260842964/) - Meetup
