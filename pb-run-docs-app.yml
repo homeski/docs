@@ -53,7 +53,7 @@
   vars:
     docs:
       https: false
-      local_port: 8000
+      port: 8000
       ssl_key_path: null
   tasks:
     - name: Template docker-compose.yml
