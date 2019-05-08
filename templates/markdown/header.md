@@ -1,1 +1,1 @@
-# [escwq.com](/)
+# [blog.escwq.com](/)
