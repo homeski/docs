@@ -11,4 +11,4 @@
 
 **Talks**
 
-- [Ansible NYC](https://www.meetup.com/Ansible-NYC/events/260842964/) - Meetup.com
+- [Ansible NYC](https://www.meetup.com/Ansible-NYC/events/260842964/) - [Meetup](https://meetup.com)
